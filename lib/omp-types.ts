@@ -1,11 +1,15 @@
 import type {
+  AgentSession,
   AgentSessionEvent,
-  SessionManager,
+  ModelRegistry,
   Settings,
   SlashCommandInfo as OmpSlashCommandInfo,
   Theme,
 } from "@oh-my-pi/pi-coding-agent";
-import type { Goal, GoalModeState } from "@oh-my-pi/pi-coding-agent/goals/state";
+import type { ScopedModel } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
+import type { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import type { GoalModeState } from "@oh-my-pi/pi-coding-agent/goals/state";
+import type { Goal } from "@oh-my-pi/pi-tui/tools/goal";
 import type { ExtensionAskDialogQuestion, ExtensionAskDialogResult } from "./types";
 
 
@@ -28,10 +32,7 @@ export interface SlashCommandInfo {
   path?: string;
 }
 
-export interface ModelLike {
-  id: string;
-  provider: string;
-}
+export type ModelLike = ScopedModel["model"];
 
 export interface ToolInfo {
   name: string;
@@ -149,12 +150,7 @@ export interface AgentSessionLike {
   readonly autoCompactionEnabled: boolean;
   readonly autoRetryEnabled: boolean;
   readonly model: ModelLike | undefined;
-  readonly modelRegistry: {
-    find: (provider: string, modelId: string) => ModelLike | undefined;
-    getAll: () => ModelLike[];
-    getAvailable: () => ModelLike[];
-    refresh: (strategy?: string) => Promise<unknown>;
-  };
+  readonly modelRegistry: Pick<ModelRegistry, "find" | "getAll" | "getAvailable" | "refresh">;
   readonly sessionManager: SessionManager;
   readonly settings: Settings;
   readonly agent: { state?: { systemPrompt?: string | string[]; thinkingLevel?: string } };
@@ -175,8 +171,8 @@ export interface AgentSessionLike {
   executeBash(command: string, onChunk?: (chunk: string) => void, options?: { excludeFromContext?: boolean }): Promise<{ output: string; exitCode?: number; cancelled?: boolean; truncated?: boolean; fullOutputPath?: string }>;
   abortBash(): void;
   readonly isBashRunning: boolean;
-  setModel(model: ModelLike, role?: string, options?: { selector?: string; thinkingLevel?: string; persist?: boolean }): Promise<{ switched: boolean }>;
-  resolveRoleModel(role: string): ModelLike | undefined;
+  setModel: AgentSession["setModel"];
+  resolveRoleModel: AgentSession["resolveRoleModel"];
   navigateTree(targetId: string, options?: { summarize?: boolean }): Promise<NavigateTreeResult>;
   branch(entryId: string): Promise<{ cancelled: boolean }>;
   /**

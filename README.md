@@ -129,6 +129,10 @@ Two places surface them:
 - **The model picker in the chat bar** lists the configured roles above the flat model list. Picking one switches the session onto that role's model *and records the role*, exactly like `/model` does, so the transcript and omp's retry fallbacks agree on which role is driving.
 - **Models → Model roles** assigns a model to each role. Writes go to `modelRoles` in `~/.omp/agent/config.yml` (or `.omp/config.yml` when you pick **This project**), which is the same record the CLI reads — an assignment made in the browser is what your next terminal session starts with.
 
+The available model catalog comes from omp-web's bundled omp SDK, not the `omp`
+binary installed separately on your machine. If the CLI shows a newly released
+model that the web picker does not, update omp-web and restart its server.
+
 Session titles follow the same routing: omp-web asks omp to name a session, and omp resolves that through the `tiny` → `commit` → `smol` chain rather than the session's primary model.
 
 The reasoning selector supports **Auto**, which lets omp select effort for each turn. The selector keeps Auto selected across reloads and shows the resolved effort separately, for example `auto (high)`. Selecting Auto explicitly also carries that preference into a new session.

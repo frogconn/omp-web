@@ -54,7 +54,7 @@ export async function GET(
     controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
   };
 
-  // AbortController propagates client disconnect into AuthStorage.login().
+  // AbortController propagates client disconnect into the OAuth login.
   const abort = new AbortController();
   req.signal.addEventListener("abort", () => abort.abort());
 
@@ -119,7 +119,7 @@ export async function GET(
       abort.signal.addEventListener("abort", cleanup);
 
       try {
-        await authStorage.login(loginId, {
+        await authStorage.oauth.login(loginId, {
           // Every provider prompt (paste-the-code, enterprise URL, ...) becomes
           // a browser input request keyed by a short-lived token.
           onPrompt: async (prompt: OAuthPrompt) => {

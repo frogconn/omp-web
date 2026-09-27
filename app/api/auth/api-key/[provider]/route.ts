@@ -10,12 +10,12 @@ type Params = { params: Promise<{ provider: string }> };
 export async function GET(_req: Request, { params }: Params) {
   const { provider } = await params;
   const { modelRegistry, authStorage } = await getOmpRuntime();
-  const origin = authStorage.getCredentialOrigin(provider);
+  const origin = authStorage.keys.source(provider);
   const models = modelRegistry.getAll().filter((model) => model.provider === provider).length;
   return NextResponse.json({
     provider,
     displayName: provider,
-    configured: authStorage.hasAuth(provider),
+    configured: origin !== undefined,
     source: origin?.kind,
     models,
   });
@@ -33,10 +33,11 @@ export async function POST(req: Request, { params }: Params) {
     if (!modelRegistry.hasProvider(provider)) {
       return NextResponse.json({ error: `Unknown provider: ${provider}` }, { status: 400 });
     }
-    // omp stores one row per credential in `agent.db`; writing through
-    // AuthStorage keeps the CLI and omp-web on the same store and lock.
-    await authStorage.set(provider, { type: "api_key", key: apiKey.trim(), source: "login" });
+    // omp stores credentials in `agent.db`; the shared credential pool writes
+    // through the same store as the CLI without a network catalog refresh.
+    await authStorage.credentials.set(provider, { type: "api_key", key: apiKey.trim(), source: "login" });
     invalidateModelsCache();
+    invalidateOmpRuntime();
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
@@ -48,14 +49,14 @@ export async function DELETE(_req: Request, { params }: Params) {
   const { provider } = await params;
   try {
     const { authStorage } = await getOmpRuntime();
-    const stored = authStorage.listStoredCredentials(provider);
+    const stored = authStorage.credentials.list(provider);
     if (stored.some((entry) => entry.credential.type === "oauth")) {
       return NextResponse.json(
         { error: `${provider} is authenticated with OAuth, not an API key` },
         { status: 409 },
       );
     }
-    await authStorage.remove(provider);
+    await authStorage.credentials.remove(provider);
     invalidateModelsCache();
     invalidateOmpRuntime();
     return NextResponse.json({ success: true });

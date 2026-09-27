@@ -1,7 +1,8 @@
-import type { ConfiguredThinkingLevel } from "@oh-my-pi/pi-coding-agent/thinking";
+import type { ConfiguredThinkingLevel } from "@oh-my-pi/pi-tui/thinking";
 import type { ModelRegistry, Settings } from "@oh-my-pi/pi-coding-agent";
 import { resolveModelScope, type ScopedModel } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import type { Api, Model } from "@oh-my-pi/pi-ai";
+
+type RegistryModel = ScopedModel["model"];
 
 /**
  * Model scoping shared by the UI selector and AgentSession startup.
@@ -19,7 +20,7 @@ export type ModelScopeRegistry = Pick<ModelRegistry, "getAvailable">;
 
 export interface ModelScopeResult {
   /** Models the UI should offer, in resolver order (all available when unscoped). */
-  visible: readonly Model<Api>[];
+  visible: readonly RegistryModel[];
   /** SDK-native scope retained for AgentSession model cycling and extensions. */
   scopedModels: readonly ScopedModel[];
   /** `provider/modelId` → thinking level pinned with a `:level` pattern suffix. */
@@ -35,7 +36,7 @@ export interface InitialModelScopeOptions {
 }
 
 export interface InitialModelScopeResult {
-  model?: Model<Api>;
+  model?: RegistryModel;
   thinkingLevel?: ConfiguredThinkingLevel;
   scopedModels: ScopedModel[];
 }

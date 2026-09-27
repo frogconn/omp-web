@@ -6,9 +6,10 @@ import {
   MODEL_ROLE_IDS,
   type ModelRole,
 } from "@oh-my-pi/pi-coding-agent/config/model-roles";
-import { resolveModelRoleValue } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import type { Api, Model } from "@oh-my-pi/pi-ai";
+import { resolveModelRoleValue, type ScopedModel } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
 import type { ModelRoleAssignment, ModelRoleModelRef, ModelRoleScope } from "./api-types";
+
+type RegistryModel = ScopedModel["model"];
 
 export type { ModelRoleAssignment, ModelRoleModelRef, ModelRoleScope };
 
@@ -41,7 +42,7 @@ export function describeModelRole(role: string): string | undefined {
   return ROLE_DESCRIPTIONS[role];
 }
 
-function toModelRef(model: Model<Api>, thinkingLevel?: string): ModelRoleModelRef {
+function toModelRef(model: RegistryModel, thinkingLevel?: string): ModelRoleModelRef {
   return {
     provider: model.provider,
     modelId: model.id,
@@ -73,7 +74,7 @@ export function readDefaultModelRole(settings: Settings): { provider: string; mo
  */
 export function listModelRoles(
   settings: Settings,
-  availableModels: Model<Api>[],
+  availableModels: RegistryModel[],
 ): ModelRoleAssignment[] {
   const builtinIds = new Set<string>(MODEL_ROLE_IDS);
   return getKnownRoleIds(settings).map((role) => {

@@ -1,18 +1,7 @@
 import { NextResponse } from "next/server";
-import {
-  getDefault,
-  getEnumValues,
-  getPathsForTab,
-  getType,
-  getUi,
-  hasUi,
-  isCredential,
-  SETTINGS_SCHEMA,
-  SETTING_TABS,
-  TAB_GROUPS,
-  TAB_METADATA,
-  type SettingPath,
-} from "@oh-my-pi/pi-coding-agent/config/settings-schema";
+import { orderedSettings } from "@oh-my-pi/pi-coding-agent/config/all-settings";
+import { lookup, type AnySetting } from "@oh-my-pi/pi-coding-agent/config/registry";
+import { SETTING_TABS, TAB_GROUPS, TAB_METADATA } from "@oh-my-pi/pi-tui/overlays/settings-defs";
 import { getOmpRuntime, getSettingsForCwd } from "@/lib/omp-runtime";
 import { getAllowedFileRoots, isExistingFilePathAllowed } from "@/lib/file-access";
 import { getAvailableWebThemes, getWebThemeConfig } from "@/lib/omp-theme";
@@ -33,29 +22,28 @@ async function validateCwd(cwd: string | null): Promise<string | undefined> {
   return cwd;
 }
 
-function optionsFor(path: SettingPath, runtimeThemes: string[]): SettingsOption[] | undefined {
-  const ui = getUi(path);
+function optionsFor(setting: AnySetting, runtimeThemes: string[]): SettingsOption[] | undefined {
+  const ui = setting.ui;
   if (!ui) return undefined;
   if (ui.options === "runtime") {
-    return path === "theme.dark" || path === "theme.light"
+    return setting.id === "theme.dark" || setting.id === "theme.light"
       ? runtimeThemes.map((value) => ({ value, label: value }))
       : [];
   }
   if (Array.isArray(ui.options)) return ui.options.map((option) => ({ ...option }));
-  const values = getEnumValues(path);
-  return values?.map((value) => ({ value, label: value }));
+  return setting.enumValues?.map((value) => ({ value, label: value }));
 }
 
-function fieldTypeFor(path: SettingPath): SettingsFieldType | null {
-  const schemaType = getType(path);
-  const ui = getUi(path);
+function fieldTypeFor(setting: AnySetting): SettingsFieldType | null {
+  const schemaType = setting.type;
+  const ui = setting.ui;
   if (!ui) return null;
   if (schemaType === "boolean") return "boolean";
   if (schemaType === "enum") return "select";
-  if (schemaType === "string") return isCredential(path) ? "secret" : ui.options ? "select" : "text";
+  if (schemaType === "string") return setting.isCredential ? "secret" : ui.options ? "select" : "text";
   if (schemaType === "number") return ui.options ? "select" : null;
   if (schemaType === "array") return ui.options ? "multiselect" : null;
-  if (schemaType === "record") return path === "providers.maxInFlightRequests" ? "providerLimits" : "text";
+  if (schemaType === "record") return setting.id === "providers.maxInFlightRequests" ? "providerLimits" : "text";
   return null;
 }
 
@@ -71,9 +59,9 @@ function serializableValue(value: unknown): SettingsValue {
   return value as Record<string, number>;
 }
 
-function validateSettingValue(path: SettingPath, value: unknown): SettingsValue {
-  const schemaType = getType(path);
-  const ui = getUi(path);
+function validateSettingValue(setting: AnySetting, value: unknown): SettingsValue {
+  const schemaType = setting.type;
+  const ui = setting.ui;
   if (!ui) throw new Error("Setting is not exposed by /settings");
 
   if (schemaType === "boolean") {
@@ -82,14 +70,14 @@ function validateSettingValue(path: SettingPath, value: unknown): SettingsValue 
   }
   if (schemaType === "string") {
     if (typeof value !== "string") throw new Error("Expected text");
-    const allowed = optionsFor(path, []);
+    const allowed = optionsFor(setting, []);
     if (ui.options !== "runtime" && allowed?.length && !allowed.some((option) => option.value === value)) {
       throw new Error("Invalid option");
     }
     return value;
   }
   if (schemaType === "enum") {
-    if (typeof value !== "string" || !getEnumValues(path)?.includes(value)) throw new Error("Invalid option");
+    if (typeof value !== "string" || !setting.enumValues?.includes(value)) throw new Error("Invalid option");
     return value;
   }
   if (schemaType === "number") {
@@ -104,7 +92,7 @@ function validateSettingValue(path: SettingPath, value: unknown): SettingsValue 
     if (!allowed || value.some((item) => !allowed.has(item))) throw new Error("Invalid list option");
     return [...new Set(value)] as string[];
   }
-  if (schemaType === "record" && path === "providers.maxInFlightRequests") {
+  if (schemaType === "record" && setting.id === "providers.maxInFlightRequests") {
     if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Expected provider limits");
     const result: Record<string, number> = {};
     for (const [provider, limit] of Object.entries(value)) {
@@ -128,24 +116,26 @@ export async function GET(req: Request) {
     ]);
     const themeNames = availableThemes.map(({ name }) => name);
     const fields: SettingsField[] = [];
+    const ordered = orderedSettings();
 
     for (const tab of SETTING_TABS) {
-      for (const path of getPathsForTab(tab)) {
-        const fieldType = fieldTypeFor(path);
-        const ui = getUi(path);
-        if (!fieldType || !ui) continue;
-        const secret = isCredential(path);
+      for (const setting of ordered) {
+        const ui = setting.ui;
+        if (ui?.tab !== tab) continue;
+        const fieldType = fieldTypeFor(setting);
+        if (!fieldType) continue;
+        const secret = setting.isCredential;
         fields.push({
-          path,
+          path: setting.id,
           tab,
           group: ui.group,
           label: ui.label,
           description: ui.description,
           type: fieldType,
-          value: secret ? null : serializableValue(settings.get(path)),
-          defaultValue: secret ? null : serializableValue(getDefault(path)),
-          configured: settings.isConfigured(path),
-          options: optionsFor(path, themeNames),
+          value: secret ? null : serializableValue(setting.layered(settings)),
+          defaultValue: secret ? null : serializableValue(setting.default),
+          configured: settings.isConfigured(setting),
+          options: optionsFor(setting, themeNames),
           ordered: ui.ordered === true,
           condition: ui.condition,
         });
@@ -168,21 +158,21 @@ export async function GET(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const body = await req.json() as { path?: string; value?: unknown };
-    if (!body.path || !(body.path in SETTINGS_SCHEMA) || !hasUi(body.path as SettingPath)) {
+    const setting = body.path ? lookup(body.path) : undefined;
+    if (!setting?.ui) {
       return NextResponse.json({ error: "Unknown setting" }, { status: 400 });
     }
-    const path = body.path as SettingPath;
-    const value = validateSettingValue(path, body.value);
+    const value = validateSettingValue(setting, body.value);
     if (
-      (path === "theme.dark" || path === "theme.light")
+      (setting.id === "theme.dark" || setting.id === "theme.light")
       && (typeof value !== "string" || !(await getAvailableWebThemes()).some(({ name }) => name === value))
     ) {
       throw new Error("Unknown omp theme");
     }
     const { settings } = await getOmpRuntime();
-    settings.set(path, value as never);
+    setting.set(settings, value);
     await settings.flush();
-    return NextResponse.json({ success: true, value: serializableValue(settings.get(path)) });
+    return NextResponse.json({ success: true, value: serializableValue(setting.layered(settings)) });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 400 });
   }

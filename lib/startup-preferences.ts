@@ -1,6 +1,7 @@
-import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { ConfiguredThinkingLevel } from "@oh-my-pi/pi-coding-agent/thinking";
+import type { ConfiguredThinkingLevel } from "@oh-my-pi/pi-tui/thinking";
+import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core/thinking";
 import type { Settings } from "@oh-my-pi/pi-coding-agent";
+import { cfgDefaultThinkingLevel } from "@oh-my-pi/pi-coding-agent/session/settings";
 import { formatRoleSelector } from "./model-roles";
 
 export interface ExplicitStartupPreferences {
@@ -46,11 +47,13 @@ export async function persistExplicitStartupPreferences(
     modelDefaultChanged = true;
   }
 
+  const defaultThinkingLevel = explicit.thinkingLevel === "auto" ? "auto" : effective.thinkingLevel;
   if (
     explicit.thinkingLevel
-    && (explicit.thinkingLevel === "auto" || effective.supportsThinking || effective.thinkingLevel !== "off")
+    && (explicit.thinkingLevel === "auto" || effective.supportsThinking)
+    && cfgDefaultThinkingLevel.accepts(defaultThinkingLevel)
   ) {
-    settings.set("defaultThinkingLevel", (explicit.thinkingLevel === "auto" ? "auto" : effective.thinkingLevel) as never);
+    cfgDefaultThinkingLevel.set(settings, cfgDefaultThinkingLevel.parse(defaultThinkingLevel));
   }
 
   await settings.flush();

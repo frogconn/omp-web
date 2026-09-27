@@ -1,4 +1,4 @@
-import type { ConfiguredThinkingLevel } from "@oh-my-pi/pi-coding-agent/thinking";
+import type { ConfiguredThinkingLevel } from "@oh-my-pi/pi-tui/thinking";
 import {
   applyResolvedSystemPromptInputs,
   createAgentSession,
@@ -12,6 +12,7 @@ import {
 import { buildAvailableSlashCommands } from "@oh-my-pi/pi-coding-agent/slash-commands/available-commands";
 import { BUILTIN_SLASH_COMMAND_DEFS } from "@oh-my-pi/pi-coding-agent/slash-commands/builtin-registry";
 import { executeAcpBuiltinSlashCommand, type AcpBuiltinSlashCommandResult } from "@oh-my-pi/pi-coding-agent/slash-commands/acp-builtins";
+import { cfgEnabledModels } from "@oh-my-pi/pi-coding-agent/config/model-settings";
 import { discoverCustomToolPaths } from "@oh-my-pi/pi-coding-agent/extensibility/custom-tools";
 import { initializeExtensions } from "@oh-my-pi/pi-coding-agent/modes/runtime-init";
 import { readPlanFile } from "@oh-my-pi/pi-coding-agent/plan-mode/plan-files";
@@ -1782,7 +1783,7 @@ export async function startRpcSession(
       const systemPrompts = await resolveSessionSystemPrompts(sessionCwd);
 
       const { modelRegistry } = runtime;
-      const scope = await resolveVisibleModels(modelRegistry, settings.get("enabledModels"), settings);
+      const scope = await resolveVisibleModels(modelRegistry, cfgEnabledModels.get(settings), settings);
       const defaultRole = readDefaultModelRole(settings);
       const hasExistingMessages = sessionManager.buildSessionContext().messages.length > 0;
       const initial = hasExistingMessages

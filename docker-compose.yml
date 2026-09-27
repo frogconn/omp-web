@@ -15,6 +15,9 @@ services:
         UID: ${OMP_UID:-1000}
         GID: ${OMP_GID:-1000}
     image: omp-web:local
+    # Keep the CLI's absolute session cwd valid inside the container when an
+    # absolute workspace is configured. With no override, retain /workspace.
+    working_dir: ${OMP_WEB_WORKSPACE:-/workspace}
     # Loopback only. omp-web can run a high-privilege agent, so read
     # docs/docker.md before publishing this on 0.0.0.0.
     ports:
@@ -27,7 +30,7 @@ services:
       # The same directory the omp CLI writes: sessions, config and model roles
       # are shared with the terminal.
       - ${OMP_HOME:-${HOME}/.omp}:/home/omp/.omp
-      # The projects omp-web may open. Narrow this to the tree you want the
-      # agent to reach.
-      - ${OMP_WEB_WORKSPACE:-.}:/workspace
+      # Mount the same host tree at its absolute path so session cwd values
+      # recorded by omp on the host resolve in the container as well.
+      - ${OMP_WEB_WORKSPACE:-.}:${OMP_WEB_WORKSPACE:-/workspace}
     restart: unless-stopped

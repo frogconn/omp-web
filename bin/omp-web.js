@@ -22,7 +22,7 @@ if (!process.versions.bun && !isNodeVersionSupported(process.versions.node)) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { spawn } = require("child_process");
+const { spawn, spawnSync } = require("child_process");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const path = require("path");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -78,6 +78,16 @@ const bunPath = resolveBunPath();
 if (!bunPath) {
   console.error(getMissingBunMessage());
   process.exit(1);
+}
+// When invoked through Node (npm's bin shebang), check the Bun binary we
+// actually spawn; process.versions.bun only covers direct Bun invocations.
+if (!process.versions.bun) {
+  const probe = spawnSync(bunPath, ["--version"], { encoding: "utf8" });
+  const bunVersion = probe.status === 0 ? probe.stdout.trim() : "unknown";
+  if (!isBunVersionSupported(bunVersion)) {
+    console.error(getUnsupportedBunVersionMessage(bunVersion));
+    process.exit(1);
+  }
 }
 
 /** Refuse to hang on a password prompt nobody is there to answer. */

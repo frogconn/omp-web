@@ -22,6 +22,7 @@ services:
     environment:
       OMP_WEB_AUTHENTICATED: "1"
       OMP_WEB_PASSWORD: ${OMP_WEB_PASSWORD:?set OMP_WEB_PASSWORD to the password the browser should ask for}
+      OMP_WEB_ALLOWED_HOSTS: ${OMP_WEB_ALLOWED_HOSTS:-}
     volumes:
       # The same directory the omp CLI writes: sessions, config and model roles
       # are shared with the terminal.

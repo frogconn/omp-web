@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -44,3 +45,8 @@ src-tauri/target/
 src-tauri/gen/
 src-tauri/resources/
 src-tauri/server/
+scripts/build-local-package.sh
+scripts/deploy-ubuntu-remote.sh
+scripts/deploy-ubuntu.sh
+scripts/run-local-package.sh
+scripts/stop-local-package.sh

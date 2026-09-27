@@ -40,10 +40,8 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
-          # Must satisfy engines.bun (>=1.3.14): the omp SDK is published as
-          # TypeScript importing `bun:` builtins, so verifying the bump on an
-          # older Bun proves nothing about the release this repo actually ships.
-          bun-version: "1.3.14"
+          # Match engines.bun so SDK updates exercise the supported server runtime.
+          bun-version: "1.4.2"
 
       - name: Read latest upstream release
         id: release
